@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add New Book - Hindi Books Admin</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+        textarea {
+            height: 100px;
+            resize: vertical;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .btn {
+            background: #3498db;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .btn:hover {
+            background: #2980b9;
+        }
+        .btn-secondary {
+            background: #95a5a6;
+        }
+        .btn-secondary:hover {
+            background: #7f8c8d;
+        }
+        .nav {
+            margin-bottom: 30px;
+        }
+        .nav a {
+            color: #3498db;
+            text-decoration: none;
+            margin-right: 15px;
+        }
+        .nav a:hover {
+            text-decoration: underline;
+        }
+        .help-text {
+            font-size: 0.9em;
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>➕ Add New Book</h1>
+        
+        <div class="nav">
+            <a href="/">← Dashboard</a>
+            <a href="/books">View Books</a>
+        </div>
+        
+        <form method="post" action="/add-book">
+            <div class="form-group">
+                <label for="title">Book Title *</label>
+                <input type="text" id="title" name="title" required placeholder="Enter book title in Hindi or English">
+                <div class="help-text">Enter the complete title of the book</div>
+            </div>
+            
+            <div class="form-group">
+                <label for="author">Author *</label>
+                <input type="text" id="author" name="author" required placeholder="Enter author name">
+                <div class="help-text">Full name of the author</div>
+            </div>
+            
+            <div class="form-group">
+                <label for="description">Description *</label>
+                <textarea id="description" name="description" required placeholder="Enter book description"></textarea>
+                <div class="help-text">Brief description of the book content</div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="category">Category *</label>
+                    <select id="category" name="category" required>
+                        <option value="">Select Category</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat }}">{{ cat }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="price">Price (₹) *</label>
+                    <input type="number" id="price" name="price" step="0.01" min="0" required placeholder="0.00">
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="stock_quantity">Stock Quantity *</label>
+                    <input type="number" id="stock_quantity" name="stock_quantity" min="0" required placeholder="0">
+                </div>
+                
+                <div class="form-group">
+                    <label for="image_url">Image Filename</label>
+                    <input type="text" id="image_url" name="image_url" placeholder="book-cover.jpg">
+                    <div class="help-text">Optional: Image filename (place in static/images/books/)</div>
+                </div>
+            </div>
+            
+            <div style="text-align: center; margin-top: 30px;">
+                <button type="submit" class="btn">➕ Add Book</button>
+                <a href="/books" class="btn btn-secondary" style="margin-left: 10px;">Cancel</a>
+            </div>
+        </form>
+        
+        <div style="margin-top: 30px; padding: 20px; background: #e8f4f8; border-radius: 5px;">
+            <h3>💡 Tips for Adding Books:</h3>
+            <ul>
+                <li><strong>Title:</strong> Use the original title in Hindi or English</li>
+                <li><strong>Author:</strong> Full name as it appears on the book</li>
+                <li><strong>Description:</strong> Brief summary of the book's content</li>
+                <li><strong>Category:</strong> Choose the most appropriate category</li>
+                <li><strong>Price:</strong> Enter price in Indian Rupees</li>
+                <li><strong>Stock:</strong> Number of copies available</li>
+                <li><strong>Image:</strong> Upload book cover to static/images/books/ folder</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>
