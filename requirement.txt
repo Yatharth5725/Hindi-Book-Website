@@ -22,23 +22,17 @@ yup@^1.2.0
 react-hot-toast@^2.4.0
 react-lazy-load-image-component@^1.5.6
 
-# BACKEND REQUIREMENTS (Node.js + Express.js)
-express@^4.18.2
-mongoose@^7.4.0
-dotenv@^16.0.3
-jsonwebtoken@^9.0.0
-bcryptjs@^2.4.3
-cors@^2.8.5
-multer@^1.4.5-lts.1
-nodemailer@^6.9.3
-helmet@^7.0.0
-morgan@^1.10.0
-winston@^3.8.2
-express-rate-limit@^6.7.0
-express-validator@^7.0.1
-payu-sdk@^1.0.3
-razorpay@^2.8.5  # Alternative payment option
-cloudinary@^1.37.4  # For image uploads
+# BACKEND REQUIREMENTS 
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+sqlalchemy==2.0.23
+PyJWT==2.8.0
+bcrypt==4.1.2
+python-multipart==0.0.6
+pydantic==2.5.0
+python-dotenv==1.0.0
+
+
 
 # DEVELOPMENT TOOLS
 nodemon@^3.0.1  # For backend development
