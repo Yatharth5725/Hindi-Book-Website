@@ -22,11 +22,18 @@ from auth import (
 )
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 # Create database tables
-create_tables()
+try:
+    create_tables()
+    logger.info("✅ Database initialized successfully")
+except Exception as e:
+    logger.error(f"❌ Database initialization error: {str(e)}")
 
 # App initialization
 app = FastAPI(
@@ -38,10 +45,17 @@ app = FastAPI(
 )
 
 # Create static directory if it doesn't exist
-os.makedirs("static/images/books", exist_ok=True)
+try:
+    os.makedirs("static/images/books", exist_ok=True)
+    logger.info("✅ Static directories ready")
+except Exception as e:
+    logger.warning(f"⚠️  Static directory warning: {str(e)}")
 
 # Mount static files for images
-app.mount("/static", StaticFiles(directory="static"), name="static")
+try:
+    app.mount("/static", StaticFiles(directory="static"), name="static")
+except Exception as e:
+    logger.warning(f"⚠️  Static files mount warning: {str(e)}")
 
 # CORS middleware
 app.add_middleware(
@@ -52,7 +66,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Health check endpoint
+# ==================== UTILITY FUNCTIONS ====================
+
+def get_image_url(image_filename: Optional[str]) -> Optional[str]:
+    """Convert image filename to full URL"""
+    if not image_filename:
+        return None
+    return f"/static/images/books/{image_filename}"
+
+# ==================== HEALTH & ROOT ENDPOINTS ====================
+
 @app.get("/health")
 def health_check():
     """Health check endpoint"""
@@ -60,12 +83,13 @@ def health_check():
     return {
         "status": "healthy" if db_status else "unhealthy",
         "database": "connected" if db_status else "disconnected",
-        "static_files": os.path.exists("static/images/books")
+        "static_files": os.path.exists("static/images/books"),
+        "version": "2.0.0"
     }
 
-# Root endpoint
 @app.get("/")
 def read_root():
+    """Root endpoint"""
     return {
         "message": "Hindi Books API is running!",
         "version": "2.0.0",
@@ -75,14 +99,8 @@ def read_root():
         "static_files": "/static"
     }
 
-# Helper function for image URLs
-def get_image_url(image_filename: Optional[str]) -> Optional[str]:
-    """Convert image filename to full URL"""
-    if not image_filename:
-        return None
-    return f"/static/images/books/{image_filename}"
+# ==================== BOOK ENDPOINTS ====================
 
-# Book routes
 @app.get("/books", response_model=PaginatedBooks)
 def get_books(
     page: int = Query(1, ge=1, description="Page number"),
@@ -134,7 +152,21 @@ def get_books(
         pages = math.ceil(total / per_page) if total > 0 else 1
         
         return PaginatedBooks(
-            books=books,
+            books=[
+                {
+                    "id": book.id,
+                    "title": book.title,
+                    "author": book.author,
+                    "description": book.description,
+                    "category": book.category,
+                    "price": book.price,
+                    "image_url": get_image_url(book.image_url),
+                    "stock_quantity": book.stock_quantity,
+                    "is_available": book.is_available,
+                    "created_at": book.created_at
+                }
+                for book in books
+            ],
             total=total,
             page=page,
             per_page=per_page,
@@ -151,14 +183,25 @@ def get_book(book_id: int, db: Session = Depends(get_db)):
         book = db.query(Book).filter(Book.id == book_id, Book.is_available == True).first()
         if not book:
             raise HTTPException(status_code=404, detail="Book not found")
-        return book
+        return {
+            "id": book.id,
+            "title": book.title,
+            "author": book.author,
+            "description": book.description,
+            "category": book.category,
+            "price": book.price,
+            "image_url": get_image_url(book.image_url),
+            "stock_quantity": book.stock_quantity,
+            "is_available": book.is_available,
+            "created_at": book.created_at
+        }
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error fetching book {book_id}: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@app.post("/books", response_model=BookResponse)
+@app.post("/books", response_model=BookResponse, status_code=status.HTTP_201_CREATED)
 def create_book(
     book: BookCreate, 
     current_user: dict = Depends(get_current_admin_user), 
@@ -255,7 +298,7 @@ def delete_book(
         db_book.is_available = False
         db.commit()
         logger.info(f"Book deleted: {db_book.title} by admin {current_user['sub']}")
-        return {"message": "Book deleted successfully"}
+        return {"message": "Book deleted successfully", "book_id": book_id}
     except HTTPException:
         raise
     except Exception as e:
@@ -279,8 +322,9 @@ def get_categories(db: Session = Depends(get_db)):
         logger.error(f"Error fetching categories: {str(e)}")
         raise HTTPException(status_code=500, detail="Could not fetch categories")
 
-# User routes
-@app.post("/register", response_model=UserResponse)
+# ==================== USER ENDPOINTS ====================
+
+@app.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def register(user: UserCreate, db: Session = Depends(get_db)):
     """Register new user"""
     try:
@@ -289,17 +333,18 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
             (User.username == user.username) | (User.email == user.email)
         ).first()
         if existing_user:
-            raise HTTPException(
-                status_code=400, 
-                detail="Username or email already registered"
-            )
+            if existing_user.username == user.username:
+                raise HTTPException(status_code=400, detail="Username already registered")
+            else:
+                raise HTTPException(status_code=400, detail="Email already registered")
         
         # Create new user
         hashed_password = hash_password(user.password)
         db_user = User(
             username=user.username, 
             email=user.email, 
-            hashed_password=hashed_password
+            hashed_password=hashed_password,
+            is_admin=False
         )
         db.add(db_user)
         db.commit()
@@ -321,8 +366,9 @@ def login(user_login: UserLogin, db: Session = Depends(get_db)):
         user = db.query(User).filter(User.username == user_login.username).first()
         if not user or not verify_password(user_login.password, user.hashed_password):
             raise HTTPException(
-                status_code=401, 
-                detail="Invalid username or password"
+                status_code=status.HTTP_401_UNAUTHORIZED, 
+                detail="Invalid username or password",
+                headers={"WWW-Authenticate": "Bearer"}
             )
         
         access_token = create_access_token(
@@ -354,8 +400,9 @@ def get_current_user_info(
         logger.error(f"Error fetching user info: {str(e)}")
         raise HTTPException(status_code=500, detail="Could not fetch user information")
 
-# Cart routes
-@app.post("/cart")
+# ==================== CART ENDPOINTS ====================
+
+@app.post("/cart", status_code=status.HTTP_201_CREATED)
 def add_to_cart(
     cart_item: CartAdd, 
     current_user: dict = Depends(get_current_user), 
@@ -438,7 +485,18 @@ def get_cart(
             if book and book.is_available:
                 cart_item_response = CartItemResponse(
                     id=item.id,
-                    book=book,
+                    book={
+                        "id": book.id,
+                        "title": book.title,
+                        "author": book.author,
+                        "description": book.description,
+                        "category": book.category,
+                        "price": book.price,
+                        "image_url": get_image_url(book.image_url),
+                        "stock_quantity": book.stock_quantity,
+                        "is_available": book.is_available,
+                        "created_at": book.created_at
+                    },
                     quantity=item.quantity,
                     created_at=item.created_at
                 )
@@ -551,7 +609,8 @@ def clear_cart(
         logger.error(f"Error clearing cart: {str(e)}")
         raise HTTPException(status_code=500, detail="Could not clear cart")
 
-# Admin routes
+# ==================== ADMIN ENDPOINTS ====================
+
 @app.post("/admin/users/{username}/make-admin")
 def make_admin(
     username: str, 
@@ -636,57 +695,50 @@ def get_admin_stats(
         logger.error(f"Error fetching admin stats: {str(e)}")
         raise HTTPException(status_code=500, detail="Could not fetch statistics")
 
-# Extended seed data with more Hindi books
+# ==================== SEED & SEARCH ENDPOINTS ====================
+
 @app.post("/seed")
 def seed_data(db: Session = Depends(get_db)):
-    """Seed initial data - Add your books here"""
+    """Seed initial data"""
     try:
-        # Check if books already exist
+        # Check if data already exists
         existing_books = db.query(Book).first()
-        if existing_books:
-            return {"message": "Data already exists"}
+        existing_admin = db.query(User).filter(User.username == "admin").first()
         
-        # Add your books here
-        books = [
-            # Example structure:
-            # Book(
-            #     title="Your Book Title",
-            #     author="Author Name",
-            #     description="Book description",
-            #     category="Category Name",
-            #     price=299.0,
-            #     image_url="book_image.jpg",
-            #     stock_quantity=50
-            # ),
-        ]
+        if existing_books and existing_admin:
+            return {"message": "Data already exists", "status": "skipped"}
+        
+        # Create default admin user if doesn't exist
+        if not existing_admin:
+            admin_user = User(
+                username="admin",
+                email="admin@hindibooks.com",
+                hashed_password=hash_password("Admin@123"),
+                is_admin=True
+            )
+            db.add(admin_user)
+            logger.info("Default admin user created")
+        
+        # Add sample books if needed (currently empty - use upload script)
+        books = []
         
         if books:
             for book in books:
                 db.add(book)
         
-        # Create a default admin user
-        admin_user = User(
-            username="admin",
-            email="admin@hindibooks.com",
-            hashed_password=hash_password("Admin@123"),
-            is_admin=True
-        )
-        db.add(admin_user)
-        
         db.commit()
         logger.info("Database seeded successfully")
         return {
-            "message": "Data seeded successfully!",
+            "message": "Seed completed successfully!",
             "books_added": len(books),
-            "admin_created": True,
-            "note": "Place book cover images in static/images/books/ directory"
+            "admin_created": not existing_admin,
+            "note": "Use upload_books.py script to add books, or add them via /docs interface"
         }
     except Exception as e:
         db.rollback()
         logger.error(f"Error seeding data: {str(e)}")
         raise HTTPException(status_code=500, detail="Could not seed data")
 
-# Search endpoint for frontend
 @app.get("/search")
 def search_books(
     q: str = Query(..., min_length=2, description="Search query"),
@@ -709,8 +761,13 @@ def search_books(
                     "id": book.id,
                     "title": book.title,
                     "author": book.author,
+                    "description": book.description,
+                    "category": book.category,
                     "price": book.price,
-                    "image_url": book.image_url
+                    "image_url": get_image_url(book.image_url),
+                    "stock_quantity": book.stock_quantity,
+                    "is_available": book.is_available,
+                    "created_at": book.created_at.isoformat() if book.created_at else None
                 }
                 for book in books
             ],
@@ -720,7 +777,8 @@ def search_books(
         logger.error(f"Error searching books: {str(e)}")
         raise HTTPException(status_code=500, detail="Search failed")
 
-# Error handlers
+# ==================== ERROR HANDLERS ====================
+
 @app.exception_handler(404)
 async def not_found_handler(request, exc):
     return {"error": "Resource not found", "status_code": 404}
@@ -733,6 +791,8 @@ async def validation_error_handler(request, exc):
 async def internal_server_error_handler(request, exc):
     logger.error(f"Internal server error: {str(exc)}")
     return {"error": "Internal server error", "status_code": 500}
+
+# ==================== RUN APP ====================
 
 if __name__ == "__main__":
     import uvicorn
