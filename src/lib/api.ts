@@ -1,7 +1,10 @@
 // API Service Layer for Hindi Books Website
 // This file contains all API calls to the backend
 
-const API_BASE_URL = 'http://localhost:8000';
+// Allow overriding the backend URL via env for deployments (Render, Vercel, etc.)
+const API_BASE_URL =
+  import.meta.env?.VITE_API_BASE_URL?.replace(/\/+$/, '') ||
+  'http://localhost:8000';
 
 // Types matching backend schemas
 export interface Book {
