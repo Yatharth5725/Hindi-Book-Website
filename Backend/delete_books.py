@@ -5,11 +5,16 @@ Safe utility to delete book entries from the database
 
 from typing import List
 import requests
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # API Configuration
-API_BASE_URL = "http://localhost:8000"
-ADMIN_USERNAME = "admin"
-ADMIN_PASSWORD = "Admin@123"
+API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "Admin@123")
 
 
 class BookDeleter:
